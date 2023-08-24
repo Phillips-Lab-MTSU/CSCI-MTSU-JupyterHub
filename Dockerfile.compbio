@@ -1,4 +1,4 @@
-FROM temp
+FROM jlphillips/csci:2023-08-14
 
 LABEL maintainer="Joshua L. Phillips <https://www.cs.mtsu.edu/~jphillips/>"
 
