@@ -35,3 +35,15 @@ To run:
 docker run -it --rm -p 8888:8888 -- gpus all --user root -e JUPYTER_ENABLE_LAB=yes -e GRANT_SUDO=yes -v /home/jphillips:/home/jovyan/work csci:2023-Fall
 ```
 
+### Converting to an apptainer image (sif format)
+
+You can convert the stack to sif format for running with apptainer using apptainer ([https://apptainer.org/](https://apptainer.org/) itself:
+```
+apptainer build csci-2023-Fall.sif docker://jlphillips/csci:2023-Fall
+```
+
+If you have a local image instead (from building above, then you could connect to your local docker daemon instead):
+```
+apptainer build csci-2023-Fall.sif docker-daemon://csci:2023-Fall
+```
+
