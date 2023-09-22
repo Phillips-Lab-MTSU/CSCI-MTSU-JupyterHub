@@ -17,6 +17,17 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+RUN apt-get update && \
+    apt-get dist-upgrade -y && \
+    apt-get install -y software-properties-common && \
+    add-apt-repository -y ppa:apptainer/ppa && \
+    apt-get update && \
+    apt-get install -y \
+    apptainer \
+    && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
 # Switch back to user for final env
 # configuration...
 USER $NB_UID
