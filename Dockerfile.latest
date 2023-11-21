@@ -1,7 +1,7 @@
-FROM jupyter/datascience-notebook:2023-09-11
+FROM jupyter/datascience-notebook:2023-10-20
 
 LABEL maintainer="Joshua L. Phillips <https://www.cs.mtsu.edu/~jphillips/>"
-LABEL release-date="2023-08-14"
+LABEL release-date="2023-10-20"
 
 USER root
 
@@ -22,7 +22,9 @@ RUN apt-get update && \
     enscript \
     flex \
     g++ \
+    g++-multilib \
     gcc \
+    gcc-multilib \
     gdb \
     graphviz \
     less \
@@ -45,9 +47,10 @@ RUN apt-get update && \
     apt-get dist-upgrade -y && \
     apt-get autoremove -y && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/* && \
+    rm -rf /home/${NB_USER}/.launchpadlib
 
-USER $NB_UID
+USER ${NB_UID}
 
 ## Specific version of bokeh to
 ## make pip-installed gensim
@@ -110,12 +113,14 @@ RUN pip install --no-cache-dir \
     nvidia-tensorrt \
     tensorflow \
     lightning \
+    tokenizers \
     torch \
     torchinfo \
     torchview \
     torchmetrics \
     torchvision \
     torchaudio \
+    transformers \
     --extra-index-url https://download.pytorch.org/whl/cu118
 
 # Note that we cannot clean mamba after
@@ -165,7 +170,7 @@ RUN wget 'https://sourceforge.net/projects/turbovnc/files/2.2.5/turbovnc_2.2.5_a
     rm ./turbovnc_2.2.5_amd64.deb && \
     ln -s /opt/TurboVNC/bin/* /usr/local/bin/ && \
     echo -e "jovyan\njovyan" | sudo passwd jovyan && \
-    curl -fsSL https://code-server.dev/install.sh | sh -s -- --version=4.16.1 && \
+    curl -fsSL https://code-server.dev/install.sh | sh -s -- --version=4.19.0 && \
     rm -rf "${HOME}/.cache" && \
     wget https://versaweb.dl.sourceforge.net/project/circuit/2.7.x/2.7.1/logisim-generic-2.7.1.jar && \
     mkdir /opt/logisim && \
@@ -189,7 +194,7 @@ RUN pip install --quiet --no-cache-dir *.whl && \
 
 # Switch back to user for final env
 # configuration...
-USER $NB_UID
+USER ${NB_UID}
 
 # Configure user environment (needed for singularity/apptainer)
 RUN cp /etc/skel/.bash_logout /etc/skel/.bashrc /etc/skel/.profile /home/${NB_USER}/. && conda init
