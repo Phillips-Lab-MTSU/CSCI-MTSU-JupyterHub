@@ -1,7 +1,7 @@
 FROM jupyter/datascience-notebook:2023-10-20
 
 LABEL maintainer="Joshua L. Phillips <https://www.cs.mtsu.edu/~jphillips/>"
-LABEL release-date="2023-10-20"
+LABEL release-date="2023-12-16"
 
 USER root
 
@@ -103,10 +103,12 @@ RUN CONDA_OVERRIDE_CUDA="11.8" mamba install --yes \
     websockify \
     xvfbwrapper && \
     mamba clean --all -f -y
+ENV XLA_FLAGS "--xla_gpu_cuda_data_dir=/opt/conda/pkgs/cuda-toolkit"
 
 RUN pip install --no-cache-dir \
     deepspeed \
     gym \
+    jsonargparse[signatures] \
     keras-tuner \
     keras-cv \
     keras-nlp \
@@ -115,11 +117,12 @@ RUN pip install --no-cache-dir \
     lightning \
     tokenizers \
     torch \
-    torchinfo \
-    torchview \
-    torchmetrics \
-    torchvision \
     torchaudio \
+    torchinfo \
+    torchmetrics \
+    torchtext \
+    torchview \
+    torchvision \
     transformers \
     --extra-index-url https://download.pytorch.org/whl/cu118
 
@@ -170,7 +173,7 @@ RUN wget 'https://sourceforge.net/projects/turbovnc/files/2.2.5/turbovnc_2.2.5_a
     rm ./turbovnc_2.2.5_amd64.deb && \
     ln -s /opt/TurboVNC/bin/* /usr/local/bin/ && \
     echo -e "jovyan\njovyan" | sudo passwd jovyan && \
-    curl -fsSL https://code-server.dev/install.sh | sh -s -- --version=4.19.0 && \
+    curl -fsSL https://code-server.dev/install.sh | sh -s -- --version=4.19.1 && \
     rm -rf "${HOME}/.cache" && \
     wget https://versaweb.dl.sourceforge.net/project/circuit/2.7.x/2.7.1/logisim-generic-2.7.1.jar && \
     mkdir /opt/logisim && \
