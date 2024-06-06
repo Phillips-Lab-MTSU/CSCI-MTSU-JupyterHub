@@ -1,7 +1,7 @@
-FROM quay.io/jupyter/datascience-notebook:2024-01-08
+FROM quay.io/jupyter/datascience-notebook:2024-05-20
 
 LABEL maintainer="Joshua L. Phillips <https://www.cs.mtsu.edu/~jphillips/>"
-LABEL release-date="2024-01-09"
+LABEL release-date="2024-06-04"
 
 USER root
 
@@ -52,41 +52,30 @@ RUN apt-get update && \
 
 USER ${NB_UID}
 
-## Specific version of bokeh to
-## make pip-installed gensim
-## happy...
-#    bokeh==2.3.3 \
-#    pip install --quiet --no-cache-dir \
-#    gensim && \
-
-# NOTES 2023-01-16
-# keras-nlp - is not in condaforge at
-#    time of build. Using pip, but two
-#    depends remained: tensorflow-hub
-#    and tensorflow-text. Found TF-hub
-#    in conda, so added that to the
-#    list of conda packages. TF-text
-#    is just included as a dependency
-#    of keras-nlp during the install
-#    process (just remove tf-hub from
-#    conda list once keras-nlp finally
-#    gets added at some point in the
-#    future).
-#    The above approach did not work...
-#    There were incompatible symbols
-#    and no way to resolve without
-#    rebuilding. Drop keras-nlp for
-#    now until it is in conda since
-#    there seems to be no way to make
-#    the conda/pip packages play
-#    nicely together.
-
 # GPU-enabled stack
-RUN CONDA_OVERRIDE_CUDA="11.8" mamba install --yes \
+# Pytorch instructions plus some guidance from
+# Nvidia cuda/conda installation:
+# https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#conda-installation
+RUN conda install --yes \
+    pytorch=*=*cu* \
+    pytorch-cuda=12.1 \
+    torchaudio \
+    torchmetrics \
+    torchtext \
+    torchvision \
+    cuda-libraries-dev \
+    cuda-nvcc \
+    cuda-nvtx \
+    cuda-cupti \
+    -c pytorch -c nvidia
+ENV XLA_FLAGS "--xla_gpu_cuda_data_dir=/opt/conda"
+# ENV XLA_FLAGS "--xla_gpu_cuda_data_dir=/opt/conda/lib"
+
+# Additional tools from conda-forge
+RUN mamba install --yes \
     bash_kernel \
     bokeh \
-    cudatoolkit==11.8.0 \
-    cudnn==8.8.0.121 \
+    cudnn \
     dask-gateway \
     dask-jobqueue \
     dask-mpi \
@@ -95,6 +84,7 @@ RUN CONDA_OVERRIDE_CUDA="11.8" mamba install --yes \
     jupyter-server-proxy \
     nltk \
     numpy \
+    pandas=2.1.4 \
     plotly \
     pydot \
     python-graphviz \
@@ -103,7 +93,6 @@ RUN CONDA_OVERRIDE_CUDA="11.8" mamba install --yes \
     websockify \
     xvfbwrapper && \
     mamba clean --all -f -y
-ENV XLA_FLAGS "--xla_gpu_cuda_data_dir=/opt/conda/pkgs/cuda-toolkit"
 
 RUN pip install --no-cache-dir \
     deepspeed \
@@ -112,27 +101,24 @@ RUN pip install --no-cache-dir \
     keras-tuner \
     keras-cv \
     keras-nlp \
-    nvidia-tensorrt \
-    tensorflow==2.14.1 \
+    tensorflow \
     lightning \
     tokenizers \
-    torch \
-    torchaudio \
     torchinfo \
-    torchmetrics \
     torchtext \
     torchview \
-    torchvision \
-    transformers \
-    --extra-index-url https://download.pytorch.org/whl/cu118
+    transformers
+#     --extra-index-url https://download.pytorch.org/whl/cu118
+#     --extra-index-url https://pypi.nvidia.com
 
 # Note that we cannot clean mamba after
 # this point - or it will remove the dev
 # tools from the stack...
-RUN mamba install --yes \
-    cudatoolkit-dev==11.7.0 && \
-    fix-permissions "${CONDA_DIR}" && \
+# RUN mamba install --yes \
+#     cudatoolkit-dev==11.7.0 && \
+RUN fix-permissions "${CONDA_DIR}" && \
     fix-permissions "/home/${NB_USER}"
+#     chmod o+rx /opt/conda/pkgs/cuda-toolkit
 
 # Other root operations that can't (or maybe just shouldn't)
 # be performed until the packages above are installed...
@@ -144,8 +130,13 @@ RUN python -c "import nltk; nltk.download('all','/usr/local/share/nltk_data')"
 RUN mkdir -p /usr/local/bin/before-notebook.d
 COPY config-home.sh /usr/local/bin/before-notebook.d/.
 
+# Remove news extension
+RUN jupyter labextension disable "@jupyterlab/apputils-extension:announcements"
+
 # Set system to use libraries in
 # /opt/conda/lib (nvidia-cuda)
+# /opt/conda/lib/python3.11/site-packages/tensorrt_libs (nvidia-tensorrt)
+# RUN echo -e "/opt/conda/lib\n/opt/conda/lib/python3.11/site-packages/tensorrt_libs" | tee /etc/ld.so.conf.d/zzz-conda.conf
 RUN echo -e "/opt/conda/lib" | tee /etc/ld.so.conf.d/zzz-conda.conf
 
 # Additional tools
@@ -173,7 +164,7 @@ RUN wget 'https://sourceforge.net/projects/turbovnc/files/2.2.5/turbovnc_2.2.5_a
     rm ./turbovnc_2.2.5_amd64.deb && \
     ln -s /opt/TurboVNC/bin/* /usr/local/bin/ && \
     echo -e "jovyan\njovyan" | sudo passwd jovyan && \
-    curl -fsSL https://code-server.dev/install.sh | sh -s -- --version=4.19.1 && \
+    curl -fsSL https://code-server.dev/install.sh | sh -s -- --version=4.89.1 && \
     rm -rf "${HOME}/.cache" && \
     wget https://versaweb.dl.sourceforge.net/project/circuit/2.7.x/2.7.1/logisim-generic-2.7.1.jar && \
     mkdir /opt/logisim && \

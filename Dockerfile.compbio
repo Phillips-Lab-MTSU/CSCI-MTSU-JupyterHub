@@ -1,4 +1,4 @@
-FROM jlphillips/csci:2024-01-09
+FROM jlphillips/csci:2024-06-04
 
 LABEL maintainer="Joshua L. Phillips <https://www.cs.mtsu.edu/~jphillips/>"
 
@@ -6,7 +6,7 @@ LABEL maintainer="Joshua L. Phillips <https://www.cs.mtsu.edu/~jphillips/>"
 USER $NB_UID
 
 # Qiime2
-ARG Q2_VERSION=2023.9
+ARG Q2_VERSION=2024.5
 ARG Q2_DISTRIBUTION=amplicon
 ENV QIIME2_ENV=qiime2-$Q2_DISTRIBUTION-$Q2_VERSION
 
@@ -17,9 +17,12 @@ RUN wget https://data.qiime2.org/distro/$Q2_DISTRIBUTION/$QIIME2_ENV-py38-linux-
     mamba run -n ${QIIME2_ENV} python -m ipykernel install --name ${QIIME2_ENV} --prefix /opt/conda --display-name "Python 3 (Qiime2)"
     
 RUN mamba install -n ${QIIME2_ENV} -c conda-forge -c bioconda -c qiime2 \
-    -c https://packages.qiime2.org/qiime2/$Q2_VERSION/shotgun/released/ -c defaults \
-    xmltodict 'q2-types-genomics>2023.2' ncbi-datasets-pylib && \
-    mamba run -n ${QIIME2_ENV} pip install --no-cache-dir git+https://github.com/bokulich-lab/RESCRIPt.git
+    -c https://packages.qiime2.org/qiime2/$Q2_VERSION/amplicon/released/ -c defaults \
+    rescript
+# RUN mamba install -n ${QIIME2_ENV} -c conda-forge -c bioconda -c qiime2 \
+#     -c https://packages.qiime2.org/qiime2/$Q2_VERSION/shotgun/released/ -c defaults \
+#     xmltodict 'q2-types-genomics>2023.2' ncbi-datasets-pylib && \
+#     mamba run -n ${QIIME2_ENV} pip install --no-cache-dir git+https://github.com/bokulich-lab/RESCRIPt.git
 # RUN wget https://data.qiime2.org/distro/core/qiime2-2023.7-py38-linux-conda.yml && \
 #     mamba env create -n qiime2-2023.7 --file qiime2-2023.7-py38-linux-conda.yml  && \
 #     rm qiime2-2023.7-py38-linux-conda.yml
