@@ -1,0 +1,7 @@
+FROM jlphillips/csci:2024-08-07-compbio
+
+RUN pip install --no-cache-dir \
+    accelerate \
+    && \
+    fix-permissions "${CONDA_DIR}" && \
+    fix-permissions "/home/${NB_USER}"
