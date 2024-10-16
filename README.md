@@ -1,6 +1,6 @@
 # CSCI-MTSU-JupyterHub
 
-Docker container for CSCI @ MTSU (ver. 2024-01-09)
+Docker container for CSCI @ MTSU (ver. 2024-08-07)
 
 This container is built on top of jupyter/datascience-notebook provided by jupyter/docker-stacks. It provides a JupyterLab environment with several essential (and non-essential) tools used in CSCI courses.
 
@@ -10,8 +10,8 @@ This container is built on top of jupyter/datascience-notebook provided by jupyt
 
 The recommended way to obtain the docker image is to pull from DockerHub:
 ```
-docker pull jlphillips/csci:2024-Spring
-docker run -it --rm -p 8888:8888 --gpus all --user root -e JUPYTER_ENABLE_LAB=yes -e GRANT_SUDO=yes -v /home/jphillips:/home/jovyan/work jlphillips/csci:2024-Spring
+docker pull jlphillips/csci:2024-Fall
+docker run -it --rm -p 8888:8888 --gpus all --user root -e JUPYTER_ENABLE_LAB=yes -e GRANT_SUDO=yes -v /home/jphillips:/home/jovyan/work jlphillips/csci:2024-Fall
 ```
 
 **You will need to modify `/home/jphillips` to instead indicate where your files are located in order to make this work...**
@@ -27,23 +27,23 @@ git clone https://github.com/Phillips-Lab-MTSU/CSCI-MTSU-JupyterHub.git
  
 To build:
 ```
-docker build -t csci:2024-Spring CSCI-MTSU-JuptyerHub
+docker build -t csci:2024-Fall CSCI-MTSU-JuptyerHub
 ```
 
 To run:
 ```
-docker run -it --rm -p 8888:8888 -- gpus all --user root -e JUPYTER_ENABLE_LAB=yes -e GRANT_SUDO=yes -v /home/jphillips:/home/jovyan/work csci:2024-Spring
+docker run -it --rm -p 8888:8888 -- gpus all --user root -e JUPYTER_ENABLE_LAB=yes -e GRANT_SUDO=yes -v /home/jphillips:/home/jovyan/work csci:2024-Fall
 ```
 
 ### Converting to an apptainer image (sif format)
 
 You can convert the stack to sif format for running with apptainer using apptainer ([https://apptainer.org/](https://apptainer.org/) itself:
 ```
-apptainer build csci-2024-Spring.sif docker://jlphillips/csci:2024-Spring
+apptainer build csci-2024-Fall.sif docker://jlphillips/csci:2024-Fall
 ```
 
 If you have a local image instead (from building above, then you could connect to your local docker daemon instead):
 ```
-apptainer build csci-2024-Spring.sif docker-daemon://csci:2024-Spring
+apptainer build csci-2024-Fall.sif docker-daemon://csci:2024-Fall
 ```
 
