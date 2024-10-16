@@ -1,7 +1,7 @@
-FROM quay.io/jupyter/datascience-notebook:2024-05-20
+FROM quay.io/jupyter/datascience-notebook:2024-08-05
 
 LABEL maintainer="Joshua L. Phillips <https://www.cs.mtsu.edu/~jphillips/>"
-LABEL release-date="2024-06-04"
+LABEL release-date="2024-08-07"
 
 USER root
 
@@ -95,6 +95,7 @@ RUN mamba install --yes \
     mamba clean --all -f -y
 
 RUN pip install --no-cache-dir \
+    accelerate \
     deepspeed \
     gym \
     jsonargparse[signatures] \
@@ -164,7 +165,7 @@ RUN wget 'https://sourceforge.net/projects/turbovnc/files/2.2.5/turbovnc_2.2.5_a
     rm ./turbovnc_2.2.5_amd64.deb && \
     ln -s /opt/TurboVNC/bin/* /usr/local/bin/ && \
     echo -e "jovyan\njovyan" | sudo passwd jovyan && \
-    curl -fsSL https://code-server.dev/install.sh | sh -s -- --version=4.89.1 && \
+    curl -fsSL https://code-server.dev/install.sh | sh -s -- --version=4.91.1 && \
     rm -rf "${HOME}/.cache" && \
     wget https://versaweb.dl.sourceforge.net/project/circuit/2.7.x/2.7.1/logisim-generic-2.7.1.jar && \
     mkdir /opt/logisim && \
