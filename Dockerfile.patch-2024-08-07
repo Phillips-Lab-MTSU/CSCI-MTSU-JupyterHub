@@ -1,4 +1,8 @@
-FROM jlphillips/csci:2024-08-07-compbio
+FROM jlphillips/csci:2024-08-07-compbio-prepatches
+
+RUN mamba upgrade --yes \
+    gensim && \
+    mamba clean --all -f -y
 
 RUN pip install --no-cache-dir \
     accelerate \
