@@ -1,11 +1,17 @@
-FROM quay.io/jupyter/datascience-notebook:2024-08-05
+FROM quay.io/jupyter/datascience-notebook:2025-01-13
 
 LABEL maintainer="Joshua L. Phillips <https://www.cs.mtsu.edu/~jphillips/>"
-LABEL release-date="2024-08-07"
+LABEL release-date="2025-01-13"
 
 USER root
 
-RUN echo -e "y\ny" | unminimize
+RUN apt-get update && \
+    apt-get install -y \
+    unminimize && \
+    echo -e "y\ny" | unminimize && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+# RUN echo -e "y\ny" | unminimize
 
 # Additional tools
 RUN apt-get update && \
@@ -56,8 +62,10 @@ USER ${NB_UID}
 # Pytorch instructions plus some guidance from
 # Nvidia cuda/conda installation:
 # https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#conda-installation
-RUN conda install --yes \
-    pytorch=*=*cu* \
+# This old spec doesn't work anymore, but it was MAGICAL! ---  pytorch=*=*cu*
+# RUN conda install --yes \
+RUN mamba install --yes \
+    pytorch=2.5.1=py3.12_cuda12.1_cudnn9.1.0_0 \
     pytorch-cuda=12.1 \
     torchaudio \
     torchmetrics \
@@ -68,8 +76,8 @@ RUN conda install --yes \
     cuda-nvtx \
     cuda-cupti \
     -c pytorch -c nvidia
-ENV XLA_FLAGS "--xla_gpu_cuda_data_dir=/opt/conda"
-# ENV XLA_FLAGS "--xla_gpu_cuda_data_dir=/opt/conda/lib"
+ENV XLA_FLAGS="--xla_gpu_cuda_data_dir=/opt/conda"
+# ENV XLA_FLAGS="--xla_gpu_cuda_data_dir=/opt/conda/lib"
 
 # Additional tools from conda-forge
 RUN mamba install --yes \
@@ -84,7 +92,7 @@ RUN mamba install --yes \
     jupyter-server-proxy \
     nltk \
     numpy \
-    pandas=2.1.4 \
+    pandas \
     plotly \
     pydot \
     python-graphviz \
@@ -96,7 +104,8 @@ RUN mamba install --yes \
 
 RUN pip install --no-cache-dir \
     accelerate \
-    deepspeed \
+    datasets \
+    evaluate \
     gym \
     jsonargparse[signatures] \
     keras-tuner \
@@ -165,7 +174,7 @@ RUN wget 'https://sourceforge.net/projects/turbovnc/files/2.2.5/turbovnc_2.2.5_a
     rm ./turbovnc_2.2.5_amd64.deb && \
     ln -s /opt/TurboVNC/bin/* /usr/local/bin/ && \
     echo -e "jovyan\njovyan" | sudo passwd jovyan && \
-    curl -fsSL https://code-server.dev/install.sh | sh -s -- --version=4.91.1 && \
+    curl -fsSL https://code-server.dev/install.sh | sh -s -- --version=4.96.2 && \
     rm -rf "${HOME}/.cache" && \
     wget https://versaweb.dl.sourceforge.net/project/circuit/2.7.x/2.7.1/logisim-generic-2.7.1.jar && \
     mkdir /opt/logisim && \
