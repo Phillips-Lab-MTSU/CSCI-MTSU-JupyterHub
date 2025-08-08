@@ -1,7 +1,7 @@
-FROM quay.io/jupyter/datascience-notebook:2025-01-13
+FROM quay.io/jupyter/datascience-notebook:2025-04-26
 
 LABEL maintainer="Joshua L. Phillips <https://www.cs.mtsu.edu/~jphillips/>"
-LABEL release-date="2025-01-13"
+LABEL release-date="2025-04-27"
 
 USER root
 
@@ -11,7 +11,6 @@ RUN apt-get update && \
     echo -e "y\ny" | unminimize && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
-# RUN echo -e "y\ny" | unminimize
 
 # Additional tools
 RUN apt-get update && \
@@ -84,9 +83,6 @@ RUN mamba install --yes \
     bash_kernel \
     bokeh \
     cudnn \
-    dask-gateway \
-    dask-jobqueue \
-    dask-mpi \
     expect \
     gensim \
     jupyter-server-proxy \
@@ -101,17 +97,26 @@ RUN mamba install --yes \
     websockify \
     xvfbwrapper && \
     mamba clean --all -f -y
+# Dropped packages
+#     dask-gateway \
+#     dask-jobqueue \
+#     dask-mpi \
 
 RUN pip install --no-cache-dir \
     accelerate \
+    aider-chat \
     datasets \
+    diffusers \
     evaluate \
+    invisible_watermark \
+    safetensors \
     gym \
     jsonargparse[signatures] \
     keras-tuner \
     keras-cv \
     keras-nlp \
     tensorflow \
+    tf-keras \
     lightning \
     tokenizers \
     torchinfo \
