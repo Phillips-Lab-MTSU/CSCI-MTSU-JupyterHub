@@ -1,4 +1,4 @@
-FROM jlphillips/csci:2025-01-13
+FROM jlphillips/csci:2025-08-08
 
 LABEL maintainer="Joshua L. Phillips <https://www.cs.mtsu.edu/~jphillips/>"
 
@@ -6,29 +6,15 @@ LABEL maintainer="Joshua L. Phillips <https://www.cs.mtsu.edu/~jphillips/>"
 USER $NB_UID
 
 # Qiime2
-ARG Q2_VERSION=2024.10
+ARG Q2_VERSION=2025.7
 ARG Q2_DISTRIBUTION=amplicon
 ENV QIIME2_ENV=qiime2-$Q2_DISTRIBUTION-$Q2_VERSION
 
 # Qiime2
-RUN wget https://data.qiime2.org/distro/$Q2_DISTRIBUTION/$QIIME2_ENV-py310-linux-conda.yml && \
-    mamba env create -n $QIIME2_ENV --file $QIIME2_ENV-py310-linux-conda.yml  && \
-    rm $QIIME2_ENV-py310-linux-conda.yml && \
+RUN wget https://raw.githubusercontent.com/qiime2/distributions/refs/heads/dev/$Q2_VERSION/$Q2_DISTRIBUTION/released/qiime2-amplicon-ubuntu-latest-conda.yml && \
+    mamba env create -n $QIIME2_ENV --file qiime2-$Q2_DISTRIBUTION-ubuntu-latest-conda.yml  && \
+    rm qiime2-$Q2_DISTRIBUTION-ubuntu-latest-conda.yml && \
     mamba run -n ${QIIME2_ENV} python -m ipykernel install --name ${QIIME2_ENV} --prefix /opt/conda --display-name "Python 3 (Qiime2)"
-    
-# RUN mamba install -n ${QIIME2_ENV} -c conda-forge -c bioconda -c qiime2 \
-#     -c https://packages.qiime2.org/qiime2/$Q2_VERSION/amplicon/released/ -c defaults \
-#     rescript
-# RUN mamba install -n ${QIIME2_ENV} -c conda-forge -c bioconda -c qiime2 \
-#     -c https://packages.qiime2.org/qiime2/$Q2_VERSION/shotgun/released/ -c defaults \
-#     xmltodict 'q2-types-genomics>2023.2' ncbi-datasets-pylib && \
-#     mamba run -n ${QIIME2_ENV} pip install --no-cache-dir git+https://github.com/bokulich-lab/RESCRIPt.git
-# RUN wget https://data.qiime2.org/distro/core/qiime2-2023.7-py38-linux-conda.yml && \
-#     mamba env create -n qiime2-2023.7 --file qiime2-2023.7-py38-linux-conda.yml  && \
-#     rm qiime2-2023.7-py38-linux-conda.yml
-# SHELL ["mamba", "run", "-n", "qiime2-2023.7", "/bin/bash", "-o", "pipefail", "-c"]
-# RUN python -m ipykernel install --name qiime2-2023.7 --prefix /opt/conda --display-name "Python 3 (Qiime2)"
-# SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Dada2
 RUN R -e "install.packages('BiocManager',dependencies=TRUE, repos='http://cran.rstudio.com/')" && \
