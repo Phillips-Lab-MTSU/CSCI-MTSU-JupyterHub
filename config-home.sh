@@ -25,9 +25,11 @@ if [ ! -f ${HOME}/.bashrc ]; then
    echo "Adding .bashrc"
    if [ "$(id -u)" == 0 ]; then
       su -c "cp /etc/skel/.bashrc ${HOME}/." ${NB_USER}
+      su -c "mamba shell init" ${NB_USER}
       su -c "conda init" ${NB_USER}
    else
       cp /etc/skel/.bashrc ${HOME}/.
+      mamba shell init
       conda init
    fi
 fi
