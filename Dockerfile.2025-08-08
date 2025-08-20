@@ -1,0 +1,195 @@
+# Copyright (c) Joshua L. Phillips
+# Distributed under the terms of the Modified BSD License.
+# Based on the Jupyter Docker Stacks (c) Jupyter Development Team
+# Based from: https://github.com/jupyter/docker-stacks
+ARG REGISTRY=quay.io
+ARG OWNER=jupyter
+ARG BASE_IMAGE=$REGISTRY/$OWNER/datascience-notebook:2025-08-04
+FROM $BASE_IMAGE
+
+LABEL maintainer="Joshua L. Phillips <Joshua.Phillips@mtsu.edu>"
+
+# Fix: https://github.com/hadolint/hadolint/wiki/DL4006
+# Fix: https://github.com/koalaman/shellcheck/wiki/SC3014
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+USER root
+
+RUN apt-get update && \
+    apt-get install -y \
+    unminimize && \
+    echo -e "y\ny" | unminimize && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Additional tools
+RUN apt-get update && \
+    apt-get dist-upgrade -y && \
+    apt-get install -y software-properties-common && \
+    add-apt-repository -y ppa:apptainer/ppa && \
+    apt-get update && \
+    apt-get install -y \
+    apptainer \
+    autoconf \
+    bison \
+    curl \
+    dnsutils \
+    emacs-nox \
+    enscript \
+    flex \
+    g++ \
+    g++-multilib \
+    gcc \
+    gcc-multilib \
+    gdb \
+    graphviz \
+    less \
+    libtool \
+    make \
+    man-db \
+    nasm \
+    poppler-utils \
+    python3-opengl \
+    rsync \
+    s3cmd \
+    ssh \
+    texlive-science \
+    time \
+    tmux \
+    vim \
+    wkhtmltopdf \
+    xvfb \
+    xxd \
+    zip && \
+    apt-get dist-upgrade -y && \
+    apt-get autoremove -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    rm -rf /home/${NB_USER}/.launchpadlib
+
+#
+# More info: https://github.com/jupyter/docker-stacks/issues/2296
+# hadolint ignore=DL3059
+RUN rm -rf "/home/${NB_USER}/.cache/"
+
+USER ${NB_UID}
+
+# Mamba/Conda Tools
+RUN mamba install --yes \
+    bash_kernel \
+    bokeh \
+    expect \
+    gensim \
+    jupyter-server-proxy \
+    nltk \
+    numpy \
+    pandas \
+    plotly \
+    pydot \
+    python-graphviz \
+    wandb \
+    websockify \
+    xvfbwrapper && \
+    mamba clean --all -f -y
+
+# Core Pip Packages
+RUN pip install --no-cache-dir \
+    tensorflow \
+    tf-keras \
+    keras-tuner \
+    keras-cv \
+    keras-nlp \
+    torch \
+    torchaudio \
+    torchvision \
+    torchmetrics \
+    torchtext \
+    torchinfo \
+    torchview \
+    lightning
+
+RUN pip install --no-cache-dir \
+    aider-chat \
+    gymnasium \
+    jsonargparse[signatures] \
+    accelerate \
+    datasets \
+    diffusers \
+    evaluate \
+    invisible_watermark \
+    langchain \
+    langchain-community \
+    langchain-mcp-adapters \
+    langchain-ollama \
+    langchain-openai \
+    langgraph \
+    langsmith \
+    opencv-python \
+    opencv-contrib-python \
+    safetensors \
+    tokenizers \
+    transformers && \
+    pip uninstall -y triton
+
+RUN fix-permissions "${CONDA_DIR}" && \
+    fix-permissions "/home/${NB_USER}"
+
+# Other root operations that can't (or maybe just shouldn't)
+# be performed until the packages above are installed...
+USER root
+
+# Custom hook to setup home directory
+RUN mkdir -p /usr/local/bin/before-notebook.d
+COPY config-home.sh /usr/local/bin/before-notebook.d/.
+
+# Remove news extension
+RUN jupyter labextension disable "@jupyterlab/apputils-extension:announcements"
+
+# Additional tools
+COPY patches/firefox.gpg /etc/apt/trusted.gpg.d/.
+COPY patches/firefox.list /etc/apt/sources.list.d/.
+RUN apt-get update && \
+    apt-get install -y \
+    default-jre \
+    dbus-x11 \
+    firefox-esr \
+    tigervnc-standalone-server \
+    xclip \
+    xfce4 \
+    xfce4-panel \
+    xfce4-session \
+    xfce4-settings \
+    xorg \
+    xubuntu-icon-theme \
+    && \
+    apt-get clean \
+    && \
+    apt-get -y -qq remove xfce4-screensaver \
+    # chown $HOME to workaround that the xorg installation creates a
+    # /home/jovyan/.cache directory owned by root
+    && \
+    chown -R $NB_UID:$NB_GID $HOME \
+    && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install:
+# VSCode (for IDE)
+RUN curl -fsSL https://code-server.dev/install.sh | sh -s -- --version=4.102.3 && \
+    rm -rf "${HOME}/.cache"
+
+# Switch back to user for final env
+# configuration...
+USER ${NB_UID}
+
+# JS-Proxy package(s) configuration:
+# jupyter_remote_desktop_proxy (for Desktop)
+# jupyter_codeserver_proxy (for IDE)
+# ENV CODE_WORKINGDIR="${HOME}"
+COPY ./dist/*.whl /${HOME}/
+RUN pip install --no-cache-dir *.whl && \
+    rm *.whl && \
+    fix-permissions "${CONDA_DIR}" && \
+    fix-permissions "/home/${NB_USER}"
+
+# Configure user environment (needed for singularity/apptainer)
+RUN cp /etc/skel/.bash_logout /etc/skel/.bashrc /etc/skel/.profile /home/${NB_USER}/. && mamba shell init && conda init
