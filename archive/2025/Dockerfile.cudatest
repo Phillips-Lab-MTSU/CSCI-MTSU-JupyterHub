@@ -1,0 +1,40 @@
+FROM quay.io/jupyter/datascience-notebook:2024-02-26
+
+LABEL maintainer="Joshua L. Phillips <https://www.cs.mtsu.edu/~jphillips/>"
+LABEL release-date="2024-03-01"
+
+USER root
+
+
+USER ${NB_UID}
+
+
+# GPU-enabled stack
+RUN CONDA_OVERRIDE_CUDA="11.8" mamba install --yes \
+    cudatoolkit==11.8.0 \
+    cudnn==8.8.0.121 \
+    && \
+    mamba clean --all -f -y
+ENV XLA_FLAGS "--xla_gpu_cuda_data_dir=/opt/conda/pkgs/cuda-toolkit"
+
+RUN pip install --no-cache-dir \
+    tensorrt \
+    tensorflow==2.14.1 \
+    torch \
+    --extra-index-url https://download.pytorch.org/whl/cu118 \
+    --extra-index-url https://pypi.nvidia.com
+
+# Other root operations that can't (or maybe just shouldn't)
+# be performed until the packages above are installed...
+USER root
+
+# Set system to use libraries in
+# /opt/conda/lib (nvidia-cuda)
+# /opt/conda/lib/python3.11/site-packages/tensorrt_libs (nvidia-tensorrt)
+RUN echo -e "/opt/conda/lib\n/opt/conda/lib/python3.11/site-packages/tensorrt_libs" | tee /etc/ld.so.conf.d/zzz-conda.conf
+
+
+# Switch back to user for final env
+# configuration...
+USER ${NB_UID}
+
