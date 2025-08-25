@@ -1,4 +1,4 @@
-FROM jlphillips/csci:2025-08-08
+FROM jlphillips/csci:2025-08-08-p1
 
 LABEL maintainer="Joshua L. Phillips <https://www.cs.mtsu.edu/~jphillips/>"
 
