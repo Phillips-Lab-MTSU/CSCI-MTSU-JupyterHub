@@ -146,8 +146,9 @@ COPY config-home.sh /usr/local/bin/before-notebook.d/.
 RUN jupyter labextension disable "@jupyterlab/apputils-extension:announcements"
 
 # Additional tools
-COPY patches/firefox.gpg /etc/apt/trusted.gpg.d/.
-COPY patches/firefox.list /etc/apt/sources.list.d/.
+# COPY patches/*.gpg /etc/apt/trusted.gpg.d/.
+COPY patches/*.asc /etc/apt/trusted.gpg.d/.
+COPY patches/*.list /etc/apt/sources.list.d/.
 RUN apt-get update && \
     apt-get install -y \
     default-jre \

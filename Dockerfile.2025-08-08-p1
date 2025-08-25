@@ -10,6 +10,8 @@ RUN apt-get update && \
     apt-get install -y \
     g++-14 \
     g++-14-multilib \
+    openmpi-bin \
+    libopenmpi-dev \
     && \
     apt-get autoremove -y && \
     apt-get clean && \
