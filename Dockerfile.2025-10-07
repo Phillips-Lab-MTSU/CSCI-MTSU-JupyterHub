@@ -110,6 +110,7 @@ RUN pip install --no-cache-dir \
     lightning
 
 RUN pip install --no-cache-dir \
+    gensim \
     gymnasium \
     jsonargparse[signatures] \
     accelerate \
