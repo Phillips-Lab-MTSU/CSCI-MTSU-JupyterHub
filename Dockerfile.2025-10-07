@@ -1,0 +1,261 @@
+# Copyright (c) Joshua L. Phillips
+# Distributed under the terms of the Modified BSD License.
+# Based on the Jupyter Docker Stacks (c) Jupyter Development Team
+# Based from: https://github.com/jupyter/docker-stacks
+ARG REGISTRY=quay.io
+ARG OWNER=jupyter
+ARG BASE_IMAGE=$REGISTRY/$OWNER/datascience-notebook:2025-10-06
+FROM $BASE_IMAGE
+
+LABEL maintainer="Joshua L. Phillips <Joshua.Phillips@mtsu.edu>"
+
+# Fix: https://github.com/hadolint/hadolint/wiki/DL4006
+# Fix: https://github.com/koalaman/shellcheck/wiki/SC3014
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+USER root
+
+RUN apt-get update && \
+    apt-get install -y \
+    unminimize && \
+    echo -e "y\ny" | unminimize && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Additional tools
+RUN apt-get update && \
+    apt-get dist-upgrade -y && \
+    apt-get install -y software-properties-common && \
+    add-apt-repository -y ppa:apptainer/ppa && \
+    apt-get update && \
+    apt-get install -y \
+    apptainer \
+    autoconf \
+    bison \
+    curl \
+    dnsutils \
+    emacs-nox \
+    enscript \
+    flex \
+    g++ \
+    g++-multilib \
+    g++-14 \
+    g++-14-multilib \
+    gcc \
+    gcc-multilib \
+    gdb \
+    graphviz \
+    less \
+    libopenmpi-dev \
+    libtool \
+    make \
+    man-db \
+    nasm \
+    neovim \
+    openmpi-bin \
+    poppler-utils \
+    python3-opengl \
+    rsync \
+    s3cmd \
+    ssh \
+    texlive-science \
+    time \
+    tmux \
+    wkhtmltopdf \
+    xvfb \
+    xxd \
+    zip && \
+    apt-get dist-upgrade -y && \
+    apt-get autoremove -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    rm -rf /home/${NB_USER}/.launchpadlib && \
+    rm -rf "/home/${NB_USER}/.cache/"
+
+USER ${NB_UID}
+
+# Mamba/Conda Tools
+RUN mamba install --yes \
+    bash_kernel \
+    bokeh \
+    expect \
+    jupyter-server-proxy \
+    nltk \
+    numpy \
+    pandas \
+    plotly \
+    # Note that protobuf<6 is only to suppress TF warnings (for now - remove later)
+    'protobuf<6' \
+    pydot \
+    python-graphviz \
+    wandb \
+    websockify \
+    xvfbwrapper && \
+    mamba clean --all -f -y
+
+# Core Pip Packages
+RUN pip install --no-cache-dir \
+    tensorflow \
+    tf-keras \
+    keras-tuner \
+    keras-cv \
+    keras-nlp \
+    torch \
+    torchaudio \
+    torchvision \
+    torchmetrics \
+    torchtext \
+    torchinfo \
+    torchview \
+    lightning
+
+RUN pip install --no-cache-dir \
+    gymnasium \
+    jsonargparse[signatures] \
+    accelerate \
+    datasets \
+    diffusers \
+    evaluate \
+    invisible_watermark \
+    langchain \
+    langchain-community \
+    langchain-mcp-adapters \
+    langchain-ollama \
+    langchain-openai \
+    langgraph \
+    langsmith \
+    notebook-intelligence \
+    opencv-python \
+    opencv-contrib-python \
+    safetensors \
+    tokenizers \
+    transformers && \
+    pip uninstall -y triton
+
+RUN fix-permissions "${CONDA_DIR}" && \
+    fix-permissions "/home/${NB_USER}"
+
+# Other root operations that can't (or maybe just shouldn't)
+# be performed until the packages above are installed...
+USER root
+
+# Custom hook to setup home directory
+RUN mkdir -p /usr/local/bin/before-notebook.d
+COPY config-home.sh /usr/local/bin/before-notebook.d/.
+
+# Remove news extension
+RUN jupyter labextension disable "@jupyterlab/apputils-extension:announcements"
+
+# Additional tools
+# COPY patches/*.gpg /etc/apt/trusted.gpg.d/.
+COPY patches/*.asc /etc/apt/trusted.gpg.d/.
+COPY patches/*.list /etc/apt/sources.list.d/.
+RUN apt-get update && \
+    apt-get install -y \
+    default-jre \
+    dbus-x11 \
+    firefox-esr \
+    tigervnc-standalone-server \
+    xclip \
+    xfce4 \
+    xfce4-panel \
+    xfce4-session \
+    xfce4-settings \
+    xorg \
+    xubuntu-icon-theme \
+    && \
+    apt-get clean \
+    && \
+    apt-get -y -qq remove xfce4-screensaver \
+    # chown $HOME to workaround that the xorg installation creates a
+    # /home/jovyan/.cache directory owned by root
+    && \
+    chown -R $NB_UID:$NB_GID $HOME \
+    && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install:
+# VSCode (for IDE)
+# RUN curl -fsSL https://code-server.dev/install.sh | sh -s -- --version=4.102.3 && \
+#     rm -rf "${HOME}/.cache"
+# Code Server and GitHub Copilot (in-line code) extension installation
+RUN curl -fsSL https://code-server.dev/install.sh | sh -s -- --version=4.104.2 --method=standalone --prefix=/usr/local && \
+    wget https://marketplace.visualstudio.com/_apis/public/gallery/publishers/GitHub/vsextensions/copilot/1.376.1794/vspackage && \
+    mv vspackage github-copilot.vsix.gz && \
+    gunzip github-copilot.vsix.gz && \
+    mkdir -p /usr/local/share/code-server/extensions && \
+    code-server --install-extension github-copilot.vsix --extensions-dir /usr/local/share/code-server/extensions && \
+    rm github-copilot.vsix
+
+# GitHub Copilot CLI installation
+ENV NVM_DIR=/opt/nvm
+RUN mkdir -p /opt/nvm && \
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash && \
+    bash -c "source $NVM_DIR/nvm.sh && nvm install 22" && \
+    bash -c "source $NVM_DIR/nvm.sh && npm install -g @github/copilot @github/copilot-language-server"
+
+# NVIM GitHub Copilot Plugin
+RUN git clone https://github.com/github/copilot.vim \
+    /usr/share/nvim/runtime/pack/github/start/copilot.vim
+
+# Emacs Configuration for Copilot
+COPY <<EOF /etc/emacs/site-start.d/98straight.el
+;; Package management with straight.el and use-package
+(defvar bootstrap-version)
+(let ((bootstrap-file
+       (expand-file-name
+        "straight/repos/straight.el/bootstrap.el"
+        (or (bound-and-true-p straight-base-dir)
+            user-emacs-directory)))
+      (bootstrap-version 7))
+  (unless (file-exists-p bootstrap-file)
+    (with-current-buffer
+        (url-retrieve-synchronously
+         "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
+         'silent 'inhibit-cookies)
+      (goto-char (point-max))
+      (eval-print-last-sexp)))
+  (load bootstrap-file nil 'nomessage))
+EOF
+COPY <<EOF /etc/emacs/site-start.d/99copilot.el
+;; GitHub Copilot Integration
+(use-package copilot
+  :straight (:host github :repo "copilot-emacs/copilot.el" :files ("*.el"))
+  :ensure t)
+
+(add-hook 'prog-mode-hook 'copilot-mode)
+(define-key copilot-completion-map (kbd "<tab>") 'copilot-accept-completion)
+(define-key copilot-completion-map (kbd "TAB") 'copilot-accept-completion)
+EOF
+
+# Cleanup
+RUN rm -rf "${HOME}/.cache" && \
+    rm -rf "${HOME}/.npm" && \
+    rm -rf "${HOME}/.local" && \
+    fix-permissions "${CONDA_DIR}" && \
+    fix-permissions "/home/${NB_USER}"
+
+# Switch back to user for final env
+# configuration...
+USER ${NB_UID}
+
+# JS-Proxy package(s) configuration:
+# jupyter_remote_desktop_proxy (for Desktop)
+# jupyter_codeserver_proxy (for IDE)
+# ENV CODE_WORKINGDIR="${HOME}"
+COPY ./dist/*.whl /${HOME}/
+RUN pip install --no-cache-dir *.whl && \
+    rm *.whl && \
+    fix-permissions "${CONDA_DIR}" && \
+    fix-permissions "/home/${NB_USER}"
+
+# Configure user environment (needed for singularity/apptainer)
+RUN cp /etc/skel/.bash_logout /etc/skel/.bashrc /etc/skel/.profile /home/${NB_USER}/. && mamba shell init && conda init
+RUN <<EOF
+echo -e "export NVM_DIR=\"/opt/nvm\"" >> /home/${NB_USER}/.bashrc
+echo -e "[ -s \"$NVM_DIR/nvm.sh\" ] && \\. \"$NVM_DIR/nvm.sh\"  # This loads nvm" >> /home/${NB_USER}/.bashrc
+echo -e "[ -s \"$NVM_DIR/bash_completion\" ] && \\. \"$NVM_DIR/bash_completion\"  # This loads nvm bash_completion" >> /home/${NB_USER}/.bashrc
+EOF
+
+CMD ["bash", "-c", "source $NVM_DIR/nvm.sh && exec start-notebook.py", "--"]
+
