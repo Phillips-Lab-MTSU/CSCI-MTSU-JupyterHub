@@ -180,13 +180,32 @@ RUN apt-get update && \
 # RUN curl -fsSL https://code-server.dev/install.sh | sh -s -- --version=4.102.3 && \
 #     rm -rf "${HOME}/.cache"
 # Code Server and GitHub Copilot (in-line code) extension installation
-RUN curl -fsSL https://code-server.dev/install.sh | sh -s -- --version=4.104.2 --method=standalone --prefix=/usr/local && \
-    wget https://marketplace.visualstudio.com/_apis/public/gallery/publishers/GitHub/vsextensions/copilot/1.376.1794/vspackage && \
+ARG CODESERVER_VERSION=4.104.3
+ARG COPILOT_VERSION=1.383.1811
+# ARG CODESERVER_VERSION=4.104.2
+# ARG COPILOT_VERSION=1.376.1794
+RUN curl -fsSL https://code-server.dev/install.sh | sh -s -- --version=$CODESERVER_VERSION --method=standalone --prefix=/usr/local && \
+    mkdir -p /usr/local/share/code-server/extensions && \
+    wget https://marketplace.visualstudio.com/_apis/public/gallery/publishers/GitHub/vsextensions/copilot/$COPILOT_VERSION/vspackage && \
     mv vspackage github-copilot.vsix.gz && \
     gunzip github-copilot.vsix.gz && \
-    mkdir -p /usr/local/share/code-server/extensions && \
     code-server --install-extension github-copilot.vsix --extensions-dir /usr/local/share/code-server/extensions && \
-    rm github-copilot.vsix
+    rm github-copilot.vsix && \
+    wget https://marketplace.visualstudio.com/_apis/public/gallery/publishers/ms-vscode/vsextensions/cpptools/1.28.3/vspackage && \
+    mv vspackage cpptools.vsix.gz && \
+    gunzip cpptools.vsix.gz && \
+    code-server --install-extension cpptools.vsix --extensions-dir /usr/local/share/code-server/extensions && \
+    rm cpptools.vsix && \
+    wget https://marketplace.visualstudio.com/_apis/public/gallery/publishers/ms-vscode/vsextensions/cpptools-extension-pack/1.3.1/vspackage && \
+    mv vspackage cpptools-extension-pack.vsix.gz && \
+    gunzip cpptools-extension-pack.vsix.gz && \
+    code-server --install-extension cpptools-extension-pack.vsix --extensions-dir /usr/local/share/code-server/extensions && \
+    rm cpptools-extension-pack.vsix && \
+    code-server --install-extension ms-python.python --extensions-dir /usr/local/share/code-server/extensions && \
+    code-server --install-extension ms-toolsai.jupyter --extensions-dir /usr/local/share/code-server/extensions && \
+    code-server --install-extension ms-toolsai.jupyter-renderers --extensions-dir /usr/local/share/code-server/extensions && \
+    cd /usr/local/lib/code-server-$CODESERVER_VERSION/lib/vscode/extensions && \
+    ls -d /usr/local/share/code-server/extensions/*/ | xargs -L 1 ln -s
 
 # GitHub Copilot CLI installation
 ENV NVM_DIR=/opt/nvm
