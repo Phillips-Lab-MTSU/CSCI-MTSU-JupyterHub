@@ -4,7 +4,7 @@
 # Based from: https://github.com/jupyter/docker-stacks
 ARG REGISTRY=quay.io
 ARG OWNER=jupyter
-ARG BASE_IMAGE=$REGISTRY/$OWNER/datascience-notebook:python-3.12
+ARG BASE_IMAGE=$REGISTRY/$OWNER/datascience-notebook:python-3.13
 FROM $BASE_IMAGE
 
 LABEL maintainer="Joshua L. Phillips <Joshua.Phillips@mtsu.edu>"
@@ -118,6 +118,7 @@ RUN pip install --no-cache-dir \
     torchtext \
     torchinfo \
     torchview \
+    torcheval \
     lightning
 
 RUN pip install --no-cache-dir \
