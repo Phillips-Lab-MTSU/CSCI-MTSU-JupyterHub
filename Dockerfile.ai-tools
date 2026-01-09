@@ -73,6 +73,18 @@ RUN wget -qO- "https://windsurf-stable.codeiumdata.com/wVxQEIWkwPUEAGf3/windsurf
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+# Qwen Code CLI installation
+RUN bash -c "source $NVM_DIR/nvm.sh && npm install -g \
+    npm install -g qwen-code"
+
+# Opencode CLI installation
+RUN bash -c "source $NVM_DIR/nvm.sh && npm install -g \
+    npm install -g opencode-ai"
+
+# Cline CLI installation
+RUN bash -c "source $NVM_DIR/nvm.sh && npm install -g \
+    npm install -g cline"
+
 # Cleanup
 RUN rm -rf "${HOME}/.cache" && \
     rm -rf "${HOME}/.npm" && \
@@ -87,14 +99,21 @@ USER $NB_UID
 RUN curl -LsSf https://aider.chat/install.sh | XDG_BIN_HOME=/opt/conda/bin XDG_DATA_HOME=/opt/conda/share sh
 
 # Notebook Intelligence
-# This should become a basic pip install in the future, but
-# dependencies were a problem so I rebuilt with overrides.
-COPY ./dist/notebook_intelligence-2.6.1-py3-none-any.whl \
-     /${HOME}/
 RUN pip install --no-cache-dir \
     --upgrade \
     --upgrade-strategy only-if-needed \
-    *.whl && \
-    rm *.whl && \
+    notebook-intelligence && \
     fix-permissions "${CONDA_DIR}" && \
     fix-permissions "/home/${NB_USER}"
+# Deprecated Installation for older OpenAI library compatibilty
+# This should become a basic pip install in the future, but
+# dependencies were a problem so I rebuilt with overrides.
+# COPY ./dist/notebook_intelligence-2.6.1-py3-none-any.whl \
+#      /${HOME}/
+# RUN pip install --no-cache-dir \
+#     --upgrade \
+#     --upgrade-strategy only-if-needed \
+#     *.whl && \
+#     rm *.whl && \
+#     fix-permissions "${CONDA_DIR}" && \
+#     fix-permissions "/home/${NB_USER}"
