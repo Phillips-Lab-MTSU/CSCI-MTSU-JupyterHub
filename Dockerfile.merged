@@ -269,6 +269,89 @@ echo -e "[ -s \"$NVM_DIR/bash_completion\" ] && \\. \"$NVM_DIR/bash_completion\"
 EOF
 CMD ["bash", "-c", "source $NVM_DIR/nvm.sh && exec start-notebook.py", "--"]
 
+# GitHub Copilot CLI (and language server) installation
+RUN bash -c "source $NVM_DIR/nvm.sh && npm install -g \
+    @github/copilot \
+    @github/copilot-language-server"
+
+# NVIM GitHub Copilot Plugin
+RUN git clone https://github.com/github/copilot.vim \
+    /usr/share/nvim/runtime/pack/github/start/copilot.vim
+
+# Emacs Configuration for Copilot
+COPY <<EOF /etc/emacs/site-start.d/98straight.el
+;; Package management with straight.el and use-package
+(defvar bootstrap-version)
+(let ((bootstrap-file
+       (expand-file-name
+        "straight/repos/straight.el/bootstrap.el"
+        (or (bound-and-true-p straight-base-dir)
+            user-emacs-directory)))
+      (bootstrap-version 7))
+  (unless (file-exists-p bootstrap-file)
+    (with-current-buffer
+        (url-retrieve-synchronously
+         "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
+         'silent 'inhibit-cookies)
+      (goto-char (point-max))
+      (eval-print-last-sexp)))
+  (load bootstrap-file nil 'nomessage))
+EOF
+COPY <<EOF /etc/emacs/site-start.d/99copilot.el
+;; GitHub Copilot Integration
+(use-package copilot
+  :straight (:host github :repo "copilot-emacs/copilot.el" :files ("*.el"))
+  :ensure t)
+
+(add-hook 'prog-mode-hook 'copilot-mode)
+(define-key copilot-completion-map (kbd "<tab>") 'copilot-accept-completion)
+(define-key copilot-completion-map (kbd "TAB") 'copilot-accept-completion)
+EOF
+
+# GitHub Copilot Support for VSCode
+# (Note that the separate package is no longer required in VS Code, it's already integrated)
+# Note that the ARG settings are in the previous notebook, so need to match accordingly...
+ARG CODESERVER_VERSION=4.107.1
+ARG COPILOT_VERSION=1.388.0
+# ARG CODESERVER_VERSION=4.104.3
+# ARG COPILOT_VERSION=1.383.1811
+# RUN wget -nv https://marketplace.visualstudio.com/_apis/public/gallery/publishers/GitHub/vsextensions/copilot/$COPILOT_VERSION/vspackage && \
+#     mv vspackage github-copilot.vsix.gz && \
+#     gunzip github-copilot.vsix.gz && \
+#     code-server --install-extension github-copilot.vsix --extensions-dir /usr/local/share/code-server/extensions && \
+#     rm github-copilot.vsix && \
+#     cd /usr/local/lib/code-server-$CODESERVER_VERSION/lib/vscode/extensions && \
+#     ls -d /usr/local/share/code-server/extensions/github.copilot*/ | xargs -L 1 ln -s
+
+# Cursor
+RUN wget -nv "https://downloads.cursor.com/production/56f0a83df8e9eb48585fcc4858a9440db4cc7771/linux/x64/deb/amd64/deb/cursor_2.1.50_amd64.deb" && \
+    apt-get install -y ./cursor_2.1.50_amd64.deb && \
+    rm cursor_2.1.50_amd64.deb && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Windsurf
+RUN wget -qO- "https://windsurf-stable.codeiumdata.com/wVxQEIWkwPUEAGf3/windsurf.gpg" | gpg --dearmor > windsurf-stable.gpg && \
+    install -D -o root -g root -m 644 windsurf-stable.gpg /etc/apt/keyrings/windsurf-stable.gpg && \
+    echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/windsurf-stable.gpg] https://windsurf-stable.codeiumdata.com/wVxQEIWkwPUEAGf3/apt stable main" | sudo tee /etc/apt/sources.list.d/windsurf.list > /dev/null && \
+    rm -f windsurf-stable.gpg && \
+    apt-get update && \
+    apt-get install windsurf && \ 
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Qwen Code CLI installation
+RUN bash -c "source $NVM_DIR/nvm.sh && \
+    npm install -g @qwen-code/qwen-code"
+
+# Opencode CLI installation
+RUN bash -c "source $NVM_DIR/nvm.sh && \
+    npm install -g opencode-ai"
+
+# Cline CLI installation
+RUN bash -c "source $NVM_DIR/nvm.sh && \
+    npm install -g cline"
+
 # Cleanup
 RUN rm -rf "${HOME}/.cache" && \
     rm -rf "${HOME}/.npm" && \
@@ -292,5 +375,16 @@ RUN pip install --no-cache-dir \
     --upgrade-strategy only-if-needed \
     *.whl && \
     rm *.whl && \
+    fix-permissions "${CONDA_DIR}" && \
+    fix-permissions "/home/${NB_USER}"
+
+# AIDER - probably best method for installation
+RUN curl -LsSf https://aider.chat/install.sh | XDG_BIN_HOME=/opt/conda/bin XDG_DATA_HOME=/opt/conda/share sh
+
+# Notebook Intelligence
+RUN pip install --no-cache-dir \
+    --upgrade \
+    --upgrade-strategy only-if-needed \
+    notebook-intelligence && \
     fix-permissions "${CONDA_DIR}" && \
     fix-permissions "/home/${NB_USER}"
