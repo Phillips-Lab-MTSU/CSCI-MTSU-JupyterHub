@@ -1,4 +1,4 @@
-FROM jlphillips/csci:2025-08-08-p1
+FROM jlphillips/csci:2026-05-11
 
 LABEL maintainer="Joshua L. Phillips <https://www.cs.mtsu.edu/~jphillips/>"
 
@@ -6,22 +6,27 @@ LABEL maintainer="Joshua L. Phillips <https://www.cs.mtsu.edu/~jphillips/>"
 USER $NB_UID
 
 # Qiime2
-ARG Q2_VERSION=2025.7
+ARG Q2_VERSION=2026.4
 ARG Q2_DISTRIBUTION=amplicon
 ENV QIIME2_ENV=qiime2-$Q2_DISTRIBUTION-$Q2_VERSION
 
 # Qiime2
-RUN wget https://raw.githubusercontent.com/qiime2/distributions/refs/heads/dev/$Q2_VERSION/$Q2_DISTRIBUTION/released/qiime2-amplicon-ubuntu-latest-conda.yml && \
-    mamba env create -n $QIIME2_ENV --file qiime2-$Q2_DISTRIBUTION-ubuntu-latest-conda.yml  && \
-    rm qiime2-$Q2_DISTRIBUTION-ubuntu-latest-conda.yml && \
+# RUN wget https://raw.githubusercontent.com/qiime2/distributions/refs/heads/dev/$Q2_VERSION/$Q2_DISTRIBUTION/released/qiime2-amplicon-ubuntu-latest-conda.yml && \
+#     mamba env create -n $QIIME2_ENV --file qiime2-$Q2_DISTRIBUTION-ubuntu-latest-conda.yml  && \
+#     rm qiime2-$Q2_DISTRIBUTION-ubuntu-latest-conda.yml && \
+#     mamba run -n ${QIIME2_ENV} python -m ipykernel install --name ${QIIME2_ENV} --prefix /opt/conda --display-name "Python 3 (Qiime2)"
+RUN wget https://raw.githubusercontent.com/qiime2/distributions/refs/heads/dev/$Q2_VERSION/qiime2/released/rachis-qiime2-linux-64-conda.yml && \
+    mamba env create -n $QIIME2_ENV --file rachis-qiime2-linux-64-conda.yml  && \
+    rm rachis-qiime2-linux-64-conda.yml && \
+    mamba install -n ${QIIME2_ENV} ipykernel && \
     mamba run -n ${QIIME2_ENV} python -m ipykernel install --name ${QIIME2_ENV} --prefix /opt/conda --display-name "Python 3 (Qiime2)"
 
 # Dada2
-RUN R -e "install.packages('BiocManager',dependencies=TRUE, repos='http://cran.rstudio.com/')" && \
-    R -e "BiocManager::install('dada2')" 
+# RUN R -e "install.packages('BiocManager',dependencies=TRUE, repos='http://cran.rstudio.com/')" && \
+#     R -e "BiocManager::install('dada2')" 
 
 # Other tools... (some should probably be merged above instead)
-RUN R -e "BiocManager::install('phyloseq')"
+# RUN R -e "BiocManager::install('phyloseq')"
 
 # Cleanup - not very thorough... needs revision
 RUN fix-permissions "${CONDA_DIR}" && \
