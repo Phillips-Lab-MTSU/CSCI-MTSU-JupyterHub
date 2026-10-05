@@ -1,4 +1,4 @@
-FROM jlphillips/csci:2026-05-11
+FROM jlphillips/csci:2026-08-04
 
 LABEL maintainer="Joshua L. Phillips <https://www.cs.mtsu.edu/~jphillips/>"
 
@@ -6,7 +6,7 @@ LABEL maintainer="Joshua L. Phillips <https://www.cs.mtsu.edu/~jphillips/>"
 USER $NB_UID
 
 # Qiime2
-ARG Q2_VERSION=2026.4
+ARG Q2_VERSION=2026.7
 ARG Q2_DISTRIBUTION=amplicon
 ENV QIIME2_ENV=qiime2-$Q2_DISTRIBUTION-$Q2_VERSION
 
