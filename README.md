@@ -1,6 +1,6 @@
 # CSCI-MTSU-JupyterHub
 
-Docker container for CSCI @ MTSU (ver. 2025-08-04)
+Docker container for CSCI @ MTSU (ver. 2026-08-04)
 
 Source: [https://github.com/Phillips-Lab-MTSU/CSCI-MTSU-JupyterHub](https://github.com/Phillips-Lab-MTSU/CSCI-MTSU-JupyterHub)
 
@@ -13,7 +13,7 @@ This container is built on top of jupyter/datascience-notebook provided by jupyt
 The recommended way to obtain the docker image is to pull from DockerHub:
 ```
 docker pull jlphillips/csci:2026-Fall
-docker run -it --rm -p 8888:8888 --gpus all --user root -e GRANT_SUDO=yes -v /home/jphillips:/home/jovyan/work jlphillips/csci:2025-Fall
+docker run -it --rm -p 8888:8888 --gpus all --user root -e GRANT_SUDO=yes -v /home/jphillips:/home/jovyan/work jlphillips/csci:2026-Fall
 ```
 
 There is also an image with many AI tools **removed** (built similarly to the image above):
