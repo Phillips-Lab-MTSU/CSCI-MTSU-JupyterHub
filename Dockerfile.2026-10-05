@@ -53,6 +53,7 @@ RUN apt-get update && \
     less \
     libopenmpi-dev \
     libtool \
+    lmodern \
     locales-all \
     make \
     man-db \
