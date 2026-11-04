@@ -1,0 +1,393 @@
+# Copyright (c) Joshua L. Phillips
+# Distributed under the terms of the Modified BSD License.
+# Based on the Jupyter Docker Stacks (c) Jupyter Development Team
+# Based from: https://github.com/jupyter/docker-stacks
+ARG REGISTRY=quay.io
+ARG OWNER=jupyter
+ARG BASE_IMAGE=$REGISTRY/$OWNER/datascience-notebook:2026-10-05
+FROM $BASE_IMAGE
+
+LABEL maintainer="Joshua L. Phillips <Joshua.Phillips@mtsu.edu>"
+
+# Fix: https://github.com/hadolint/hadolint/wiki/DL4006
+# Fix: https://github.com/koalaman/shellcheck/wiki/SC3014
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+USER root
+
+RUN apt-get update && \
+    apt-get install -y \
+    unminimize && \
+    echo -e "y\ny" | unminimize && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Additional tools
+RUN apt-get update && \
+    apt-get dist-upgrade -y && \
+    apt-get install -y software-properties-common && \
+    add-apt-repository -y ppa:apptainer/ppa && \
+    apt-get update && \
+    apt-get install -y \
+    apptainer \
+    autoconf \
+    automake \
+    bison \
+    chromium-browser \
+    clang \
+    cmake \
+    curl \
+    dos2unix \
+    dnsutils \
+    emacs-nox \
+    enscript \
+    flex \
+    g++ \
+    g++-multilib \
+    g++-14 \
+    g++-14-multilib \
+    gcc \
+    gcc-multilib \
+    gdb \
+    graphviz \
+    less \
+    libopenmpi-dev \
+    libtool \
+    locales-all \
+    make \
+    man-db \
+    nasm \
+    neovim \
+    openmpi-bin \
+    poppler-utils \
+    python3 \
+    python3-dev \
+    python3-opengl \
+    rsync \
+    s3cmd \
+    ssh \
+    tar \
+    texlive-science \
+    time \
+    tmux \
+    valgrind \
+    xvfb \
+    xxd \
+    zip && \
+    apt-get dist-upgrade -y && \
+    apt-get autoremove -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    rm -rf /home/${NB_USER}/.launchpadlib && \
+    rm -rf "/home/${NB_USER}/.cache/"
+
+USER ${NB_UID}
+
+# Mamba/Conda Tools
+RUN mamba install --yes \
+    bash_kernel \
+    bokeh \
+    expect \
+    jupyter-server-proxy \
+    nltk \
+    numpy \
+    pandas \
+    plotly \
+    protobuf \
+    pydot \
+    python-graphviz \
+    wandb \
+    websockify \
+    xvfbwrapper && \
+    mamba clean --all -f -y
+
+# Core Pip Packages
+
+# PyTorch
+RUN pip install --no-cache-dir \
+    --upgrade \
+    --upgrade-strategy only-if-needed \
+    torch \
+    torchaudio \
+    torchvision \
+    torchmetrics \
+    --index-url https://download.pytorch.org/whl/cu130
+
+# Tensorflow
+# RUN pip install --no-cache-dir \
+#     --upgrade \
+#     --upgrade-strategy only-if-needed \
+#     tensorflow[and-cuda] \
+#     tf-keras \
+#     keras-tuner \
+#     keras-cv \
+#     keras-nlp
+
+RUN pip install --no-cache-dir \
+    --upgrade \
+    --upgrade-strategy only-if-needed \
+    gensim \
+    gymnasium \
+    jsonargparse[signatures] \
+    accelerate \
+    datasets \
+    diffusers \
+    evaluate \
+    invisible_watermark \
+    lightning \
+    opencv-python \
+    opencv-contrib-python \
+    safetensors \
+    tokenizers \
+    torcheval \
+    torchinfo \
+    torch-geometric \
+    torchtext \
+    torchview \
+    transformers
+
+RUN fix-permissions "${CONDA_DIR}" && \
+    fix-permissions "/home/${NB_USER}"
+
+# Other root operations that can't (or maybe just shouldn't)
+# be performed until the packages above are installed...
+USER root
+
+# Custom hook to setup home directory
+RUN mkdir -p /usr/local/bin/before-notebook.d
+COPY config-home.sh /usr/local/bin/before-notebook.d/.
+
+# Remove news extension
+RUN jupyter labextension disable "@jupyterlab/apputils-extension:announcements"
+
+# Additional tools
+# COPY patches/*.gpg /etc/apt/trusted.gpg.d/.
+COPY patches/*.asc /etc/apt/trusted.gpg.d/.
+COPY patches/*.list /etc/apt/sources.list.d/.
+RUN apt-get update && \
+    apt-get install -y \
+    default-jre \
+    dbus-x11 \
+    firefox-esr \
+    tigervnc-standalone-server \
+    xclip \
+    xfce4 \
+    xfce4-panel \
+    xfce4-session \
+    xfce4-settings \
+    xorg \
+    xubuntu-icon-theme \
+    && \
+    apt-get clean \
+    && \
+    apt-get -y -qq remove xfce4-screensaver \
+    # chown $HOME to workaround that the xorg installation creates a
+    # /home/jovyan/.cache directory owned by root
+    && \
+    chown -R $NB_UID:$NB_GID $HOME \
+    && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install:
+# VSCode (for IDE)
+# Code Server and GitHub Copilot (in-line code) extension installation (other notebook)
+ARG CODESERVER_VERSION=4.140.0
+ARG CPPTOOLS_VERSION=1.35.3
+ARG CPPTOOLS_EXTENSION_VERSION=1.5.1
+RUN curl -fsSL https://code-server.dev/install.sh | sh -s -- --version=$CODESERVER_VERSION --method=standalone --prefix=/usr/local && \
+    mkdir -p /usr/local/share/code-server/extensions && \
+    wget -nv https://marketplace.visualstudio.com/_apis/public/gallery/publishers/ms-vscode/vsextensions/cpptools/$CPPTOOLS_VERSION/vspackage && \
+    mv vspackage cpptools.vsix.gz && \
+    gunzip cpptools.vsix.gz && \
+    code-server --install-extension cpptools.vsix --extensions-dir /usr/local/share/code-server/extensions && \
+    rm cpptools.vsix && \
+    wget -nv https://marketplace.visualstudio.com/_apis/public/gallery/publishers/ms-vscode/vsextensions/cpptools-extension-pack/$CPPTOOLS_EXTENSION_VERSION/vspackage && \
+    mv vspackage cpptools-extension-pack.vsix.gz && \
+    gunzip cpptools-extension-pack.vsix.gz && \
+    code-server --install-extension cpptools-extension-pack.vsix --extensions-dir /usr/local/share/code-server/extensions && \
+    rm cpptools-extension-pack.vsix && \
+    code-server --install-extension ms-python.python --extensions-dir /usr/local/share/code-server/extensions && \
+    code-server --install-extension ms-toolsai.jupyter --extensions-dir /usr/local/share/code-server/extensions && \
+    code-server --install-extension ms-toolsai.jupyter-renderers --extensions-dir /usr/local/share/code-server/extensions && \
+    cd /usr/local/lib/code-server-$CODESERVER_VERSION/lib/vscode/extensions && \
+    ls -d /usr/local/share/code-server/extensions/*/ | xargs -L 1 ln -s
+    
+# NodeJS Support
+ENV NVM_DIR=/opt/nvm
+RUN mkdir -p /opt/nvm && \
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | bash && \
+    bash -c "source $NVM_DIR/nvm.sh && nvm install 24"
+RUN <<EOF
+echo -e "export NVM_DIR=\"/opt/nvm\"" >> /home/${NB_USER}/.bashrc
+echo -e "[ -s \"$NVM_DIR/nvm.sh\" ] && \\. \"$NVM_DIR/nvm.sh\"  # This loads nvm" >> /home/${NB_USER}/.bashrc
+echo -e "[ -s \"$NVM_DIR/bash_completion\" ] && \\. \"$NVM_DIR/bash_completion\"  # This loads nvm bash_completion" >> /home/${NB_USER}/.bashrc
+EOF
+CMD ["bash", "-c", "source $NVM_DIR/nvm.sh && exec start-notebook.py", "--"]
+
+# GitHub Copilot CLI (and language server) installation
+RUN bash -c "source $NVM_DIR/nvm.sh && npm install -g \
+    @github/copilot \
+    @github/copilot-language-server"
+
+# NVIM GitHub Copilot Plugin
+RUN git clone https://github.com/github/copilot.vim \
+    /usr/share/nvim/runtime/pack/github/start/copilot.vim
+
+# Emacs Configuration for Copilot
+COPY <<EOF /etc/emacs/site-start.d/98straight.el
+;; Package management with straight.el and use-package
+(defvar bootstrap-version)
+(let ((bootstrap-file
+       (expand-file-name
+        "straight/repos/straight.el/bootstrap.el"
+        (or (bound-and-true-p straight-base-dir)
+            user-emacs-directory)))
+      (bootstrap-version 7))
+  (unless (file-exists-p bootstrap-file)
+    (with-current-buffer
+        (url-retrieve-synchronously
+         "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
+         'silent 'inhibit-cookies)
+      (goto-char (point-max))
+      (eval-print-last-sexp)))
+  (load bootstrap-file nil 'nomessage))
+EOF
+COPY <<EOF /etc/emacs/site-start.d/99copilot.el
+;; GitHub Copilot Integration
+(use-package copilot
+  :straight (:host github :repo "copilot-emacs/copilot.el" :files ("*.el"))
+  :ensure t)
+
+(add-hook 'prog-mode-hook 'copilot-mode)
+(define-key copilot-completion-map (kbd "<tab>") 'copilot-accept-completion)
+(define-key copilot-completion-map (kbd "TAB") 'copilot-accept-completion)
+EOF
+
+# OpenAI Codex Support for VSCode
+ARG CODEX_VERSION=26.5930.51102
+# ARG CODEX_VERSION=26.5727.51351
+RUN wget -nv https://marketplace.visualstudio.com/_apis/public/gallery/publishers/openai/vsextensions/chatgpt/$CODEX_VERSION/vspackage && \
+    mv vspackage openai-codex.vsix.gz && \
+    gunzip openai-codex.vsix.gz && \
+    code-server --install-extension openai-codex.vsix --extensions-dir /usr/local/share/code-server/extensions && \
+    rm openai-codex.vsix && \
+    cd /usr/local/lib/code-server-$CODESERVER_VERSION/lib/vscode/extensions && \
+    ls -d /usr/local/share/code-server/extensions/openai.chatgpt*/ | xargs -L 1 ln -s
+
+# Claude Code
+RUN curl -fsSL https://downloads.claude.ai/keys/claude-code.asc -o /etc/apt/keyrings/claude-code.asc && \
+    echo "deb [signed-by=/etc/apt/keyrings/claude-code.asc] https://downloads.claude.ai/claude-code/apt/stable stable main" | sudo tee /etc/apt/sources.list.d/claude-code.list > /dev/null && \
+    apt-get update && \
+    apt-get install -y claude-code && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Cursor
+ARG CURSOR_VERSION=3.22.12
+RUN wget -nv "https://downloads.cursor.com/production/3a92974361033b2051526321308c2740fe5912c5/linux/x64/deb/amd64/deb/cursor_${CURSOR_VERSION}_amd64.deb" && \
+    apt-get install -y ./cursor_${CURSOR_VERSION}_amd64.deb && \
+    rm cursor_${CURSOR_VERSION}_amd64.deb && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Devin Desktop (formerly Windsurf)
+RUN wget -qO- "https://windsurf-stable.codeiumdata.com/wVxQEIWkwPUEAGf3/windsurf.gpg" | gpg --dearmor > windsurf-stable.gpg && \
+    install -D -o root -g root -m 644 windsurf-stable.gpg /etc/apt/keyrings/windsurf-stable.gpg && \
+    echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/windsurf-stable.gpg] https://windsurf-stable.codeiumdata.com/wVxQEIWkwPUEAGf3/apt stable main" | sudo tee /etc/apt/sources.list.d/windsurf.list > /dev/null && \
+    rm -f windsurf-stable.gpg && \
+    apt-get update && \
+    apt-get install -y devin-desktop && \ 
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Qwen Code CLI installation
+RUN bash -c "source $NVM_DIR/nvm.sh && \
+    npm install -g @qwen-code/qwen-code"
+
+# Opencode CLI installation
+RUN bash -c "source $NVM_DIR/nvm.sh && \
+    npm install -g opencode-ai"
+
+# Cline CLI installation
+RUN bash -c "source $NVM_DIR/nvm.sh && \
+    npm install -g cline"
+
+# PyCharm and CLion (JetBrains IDEs)
+ARG PYCHARM_VERSION=2026.2.3
+ARG CLION_VERSION=2026.2.3.1
+RUN cd /opt && \
+    # PyCharm now uses -temporary- links, so each needs to be obtained from a browser within a sort time-frame
+    # wget -nv https://download-cdn.jetbrains.com/python/pycharm-$PYCHARM_VERSION.tar.gz -O pycharm.tar.gz && \
+    # wget -nv "" -O pycharm.tar.gz && \
+    wget -nv "https://download-cdn.jetbrains.com/python/pycharm-2026.2.3.tar.gz?Expires=1791394668&Signature=TKiA7exBEW0kBFuhbqQNYpu3G680UFo3d03CTzoOiLxwzf9pQe74-bqBTb3-8oU7gEGVz0UAulhcS-GI0m9~UDZCD8Y8kcaWSdVMSWk4iyKHex~quqHwN~IAIHcltTCcTxBp2FfwKlIgIz40KObY9S-67wZDOVq2Hph4TIdWVxRNhTyxZ8tgyJMwT4jjkOVYWoelUsbxl6B4P4JGkEcVdKXWjvAYPUJ9EkmkarYBh8rpoaQQeBvMsbzhSy04Z-i12WZt063sHfz21cxClUA4Xqzfz15ZENlx~FdE1vjWV2MJpc88~8KT1hMBS7r9Bv3XT5kx1RpqFbW1E1I3Jd25Eg__&Key-Pair-Id=K2PI9GMSMWJY0" -O pycharm.tar.gz && \
+    tar xzf pycharm.tar.gz && \
+    rm pycharm.tar.gz && \
+    # wget -nv "" -O clion.tar.gz && \
+    wget -nv "https://download-cdn.jetbrains.com/cpp/CLion-2026.2.3.1.tar.gz?Expires=1791395000&Signature=ccc4OVD2lkIfA6w1bA8cNaxhGolz9TEC1KJgxhd~csQ0rRC9nBElaz1tNNRPoc9CR4PczpSeA~5GvTDD94u3lWRbcIp6i0MGBiePCihO0NR2ohK5TUMmOjBi0doZO9jlDJRg4Ww56j-TqSvE924icEZH1QKlicLvBjj8i0eJk5uO83k2IRuU8S0AaTjjmDWvDtzcsOu1LZAU~qpvC6SGTsjz6Jee5~epE8SGxXQbdysKu~oGwWhI0ccYNY1D81ozaigRZS6SgkgsAnJr8YyE8i-4KznE9N1NFjFuNRNHnGSmUbWHjtXkzz2uWk9QF4~JTx9hmsLvk8slo6CcT1nreg__&Key-Pair-Id=K2PI9GMSMWJY0" -O clion.tar.gz && \
+    tar xzf clion.tar.gz && \
+    rm clion.tar.gz
+COPY <<EOF /usr/share/applications/pycharm.desktop
+[Desktop Entry]
+Name=PyCharm
+GenericName=PyCharm (Python IDE)
+Comment=Developer Tools for Python
+TryExec=/opt/pycharm-$PYCHARM_VERSION/bin/pycharm
+Exec=/opt/pycharm-$PYCHARM_VERSION/bin/pycharm %F
+Terminal=false
+Type=Application
+Keywords=code;editor;development
+Icon=/opt/pycharm-$PYCHARM_VERSION/bin/pycharm.png
+MimeType=application/xml
+Categories=Development
+EOF
+COPY <<EOF /usr/share/applications/clion.desktop
+[Desktop Entry]
+Name=CLion
+GenericName=CLion (C/C++ IDE)
+Comment=Developer Tools for C/C++
+TryExec=/opt/clion-$CLION_VERSION/bin/clion
+Exec=/opt/clion-$CLION_VERSION/bin/clion %F
+Terminal=false
+Type=Application
+Keywords=code;editor;development
+Icon=/opt/clion-$CLION_VERSION/bin/clion.png
+MimeType=application/xml
+Categories=Development
+EOF
+
+# Cleanup
+RUN rm -rf "${HOME}/.cache" && \
+    rm -rf "${HOME}/.npm" && \
+    rm -rf "${HOME}/.local" && \
+    fix-permissions "${CONDA_DIR}" && \
+    fix-permissions "/home/${NB_USER}"
+
+# Switch back to user for final env
+# configuration...
+USER ${NB_UID}
+
+# JS-Proxy package(s) configuration:
+# jupyter_remote_desktop_proxy (for Desktop)
+# jupyter_codeserver_proxy (for IDE)
+# ENV CODE_WORKINGDIR="${HOME}"
+COPY ./dist/jupyter_codeserver_proxy-1.0b3-py3-none-any.whl \
+     ./dist/jupyter_remote_desktop_proxy-3.0.2.dev0-py3-none-any.whl \
+     /${HOME}/
+RUN pip install --no-cache-dir \
+    --upgrade \
+    --upgrade-strategy only-if-needed \
+    *.whl && \
+    rm *.whl && \
+    fix-permissions "${CONDA_DIR}" && \
+    fix-permissions "/home/${NB_USER}"
+
+# AIDER - probably best method for installation
+RUN curl -LsSf https://aider.chat/install.sh | XDG_BIN_HOME=/opt/conda/bin XDG_DATA_HOME=/opt/conda/share sh
+
+# Notebook Intelligence
+RUN pip install --no-cache-dir \
+    --upgrade \
+    --upgrade-strategy only-if-needed \
+    notebook-intelligence && \
+    fix-permissions "${CONDA_DIR}" && \
+    fix-permissions "/home/${NB_USER}"
